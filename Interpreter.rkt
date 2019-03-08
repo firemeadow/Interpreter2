@@ -35,17 +35,18 @@
     (define thisvar caar)
     (define thisval caadr)
     (cond
-      ((or (null? (thisvar s)) (null? (thisval s)) (null? (thisvar s)) (null? (thisval s)) (error 'uninitialized "variable not declared"))
-      ((eq? v (thisvar s)) (if (null? (unbox (thisval s)))
-                              (error 'uninitilized "variable not set")
-                              (unbox (thisval s))))
-      (else (Mvariable_helper v (cons (cdar s) (cdadr s))))))))
+      ((or (null? (thisvar s)) (null? (thisval s))) (error 'uninitialized "variable not declared"))
+      ((eq? v (thisvar s))                          (if (null? (unbox (thisval s)))
+                                                        (error 'uninitilized "variable not set")
+                                                        (unbox (thisval s))))
+      (else                                         (Mvariable v (cons (cdar s) (cdadr s)))))))
 
 ;;Gets a state and a variable, returns true if the state has the variable initialized
 (define Minitialized
   (lambda (v s)
     (cond
       ((null? s)        #f)
+      ((null? (car s))  #f)
       ((eq? v (caar s)) #t)
       (else             (Minitialized v (cons (cdar s) (cdadr s)))))))
 
@@ -56,8 +57,8 @@
 (define Mchange_helper
   (lambda (e s return)
     (if (eq? (car e) (caar s))
-        (return (cons (car s) (cons (box (cadr e)) (cdadr s))))
-        (Mchange e (cons (cdar s) (cdadr s)) (lambda (v) (cons (cons (caar s) (car v)) (cons (caadr s) (cadr v))))))))
+        (return (list (car s) (cons (box (cadr e)) (cdadr s))))
+        (Mchange_helper e (cons (cdar s) (cdadr s)) (lambda (v) (list (append (caar s) (list (car v))) (append (caadr s) (list (cadr v)))))))))
     
 ;;Gets a list with two elements, the first the variable name, the second the value to be assigned. Checks whether the variable is already initialized
 ;;If it is, change the assigned value, otherwise, assign the variable.
@@ -65,7 +66,7 @@
   (lambda (e s)
     (cond
       ((Minitialized (car e) s) (Mchange e s))
-      (else                     (cons (cons (car s) (car e)) (cons (cadr s) (cadr e)))))))
+      (else                     (list (append (car s) (list (car e))) (append (cadr s) (list (box (cadr e)))))))))
 
 ;;Performs arithmetic on a given expression to find its numeric value
 (define Mvalue
