@@ -12,23 +12,22 @@
 (define Mstate
   (lambda (e s)
     (cond
-      ((and (list? (car e)) (null? (cdr e))) (Mstate (car e) s))
-      ((eq? 'var (car e))                    (if (not (null? (cddr e)))
-                                                 (Massign (list (leftoperand e) (Mvalue (rightoperand e) s)) s)
-                                                 (Minitialize (leftoperand e) s)))
-      ((eq? '= (car e))                      (if (Minitialized (leftoperand e) s)
-                                                 (Massign (list (leftoperand e) (Mvalue (rightoperand e) s)) s)
-                                                 (error 'uninitialized "variable not initialized")))
-      ((eq? 'if (car e))                     (Mif e s))
-      ((eq? 'while (car e))                  (Mwhile e s))
-      ((eq? 'return (car e))                 (Mvalue (cadr e) s))
-      ((list? (car e))                       (Mstate (cdr e) (Mstate (car e) s))))))
-
-  
+      ((and (list? (operator e)) (null? (cdr e))) (Mstate (operator e) s))
+      ((eq? 'var (operator e))                    (if (not (null? (cddr e)))
+                                                      (Massign (list (leftoperand e) (Mvalue (rightoperand e) s)) s)
+                                                      (Minitialize (leftoperand e) s)))
+      ((eq? '= (operator e))                      (if (Minitialized (leftoperand e) s)
+                                                      (Massign (list (leftoperand e) (Mvalue (rightoperand e) s)) s)
+                                                      (error 'uninitialized "variable not initialized")))
+      ((eq? 'if (operator e))                     (Mif e s))
+      ((eq? 'while (operator e))                  (Mwhile e s))
+      ((eq? 'return (operator e))                 (Mvalue (leftoperand e) s))
+      ((list? (operator e))                       (Mstate (cdr e) (Mstate (operator e) s))))))
+ 
 ;;Initialize a variable (not paired with a value) to the state
 (define Minitialize
   (lambda (v s)
-    (append s (list (list v)))))
+    (append s (list (define v (box null))))))
 
 ;;Gets a state and a variable, returns value of the variable in the state 
 (define Mvariable
@@ -153,6 +152,12 @@
 (define operator car)
 (define leftoperand cadr)
 (define rightoperand caddr)
+(define return (lambda (x) x))
+
+
+
+
+
 
 (Interpret "test.txt")
 
