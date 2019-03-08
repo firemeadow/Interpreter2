@@ -65,7 +65,7 @@
   (lambda (e s)
     (cond
       ((Minitialized (car e) s) (Mchange e s))
-      (else                     (append s (list e))))))
+      (else                     (cons (cons (car s) (car e)) (cons (cadr s) (cadr e)))))))
 
 ;;Performs arithmetic on a given expression to find its numeric value
 (define Mvalue
