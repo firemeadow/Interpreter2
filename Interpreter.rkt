@@ -6,7 +6,7 @@
 ;;Starts the interpreting with the state empty
 (define Interpret
   (lambda (filename)
-    (Mstate (parser filename) '())))
+    (Mstate (parser filename) '(()()))))
 
 ;;Loops through the given parse tree to find different functions to evaluate their arguments with a given state
 (define Mstate
@@ -27,18 +27,19 @@
 ;;Initialize a variable (not paired with a value) to the state
 (define Minitialize
   (lambda (v s)
-    (append s (list (define v (box null))))))
+    (cons (append (car s) (v)) (append (cadr s) (box null)))))
 
-;;Gets a state and a variable, returns value of the variable in the state 
+;;Gets a state and a variable, returns value of the variable in the state
 (define Mvariable
   (lambda (v s)
+    (define thisvar caar)
+    (define thisval caadr)
     (cond
-      ((null? s)        (error 'uninitialized "variable not declared"))
-      ((null? (caar s)) '())
-      ((eq? v (caar s)) (if (null? (cdar s))
-                            (error 'uninitilized "variable not set")
-                            (cadar s)))
-      (else             (Mvariable v (cdr s))))))
+      ((or (null? (thisvar s)) (null? (thisval s)) (null? (thisvar s)) (null? (thisval s)) (error 'uninitialized "variable not declared"))
+      ((eq? v (thisvar s)) (if (null? (unbox (thisval s)))
+                              (error 'uninitilized "variable not set")
+                              (unbox (thisval s))))
+      (else (Mvariable_helper v (cons (cdar s) (cdadr s))))))))
 
 ;;Gets a state and a variable, returns true if the state has the variable initialized
 (define Minitialized
@@ -46,14 +47,17 @@
     (cond
       ((null? s)        #f)
       ((eq? v (caar s)) #t)
-      (else             (Minitialized v (cdr s))))))
+      (else             (Minitialized v (cons (cdar s) (cdadr s)))))))
 
 ;;Precondition - Minitialized is true. Gets a variable name, value, and state. Changes variable value in the state to given value.
 (define Mchange
   (lambda (e s)
+    (Mchange_helper e s return)))
+(define Mchange_helper
+  (lambda (e s return)
     (if (eq? (car e) (caar s))
-        (cons e (cdr s))
-        (cons (car s) (Mchange e (cdr s))))))
+        (return (cons (car s) (cons (box (cadr e)) (cdadr s))))
+        (Mchange e (cons (cdar s) (cdadr s)) (lambda (v) (cons (cons (caar s) (car v)) (cons (caadr s) (cadr v))))))))
     
 ;;Gets a list with two elements, the first the variable name, the second the value to be assigned. Checks whether the variable is already initialized
 ;;If it is, change the assigned value, otherwise, assign the variable.
