@@ -22,12 +22,25 @@
       ((eq? 'if (operator e))                     (Mif e s))
       ((eq? 'while (operator e))                  (Mwhile e s))
       ((eq? 'return (operator e))                 (Mvalue (leftoperand e) s))
-      ((list? (operator e))                       (Mstate (cdr e) (Mstate (operator e) s))))))
- 
+      ((eq? 'begin (operator e))                  (removetoplayer (Mstate (cdr e) (addlayer s))))
+      ((list? (operator e))                       (Mstate (cdr e) (Mstate (operator e) s))))))         
+
+(define removetoplayer
+  (lambda (s)
+    (caddr s)))
+  
+
+(define addlayer
+  (lambda (s)
+    (list '() '() s)))
+    
+
 ;;Initialize a variable (not paired with a value) to the state
 (define Minitialize
   (lambda (v s)
-    (cons (append (car s) (v)) (append (cadr s) (box null)))))
+    (if (null? (cddr s))
+        (list (append (car s) (list v)) (append (cadr s) (list (box null))))
+        (append (list (append (car s) (v)) (append (cadr s) (list (box null)))) (cddr s)))))
 
 ;;Gets a state and a variable, returns value of the variable in the state
 (define Mvariable
@@ -35,20 +48,21 @@
     (define thisvar caar)
     (define thisval caadr)
     (cond
-      ((or (null? (thisvar s)) (null? (thisval s))) (error 'uninitialized "variable not declared"))
+      ((or (null? (car s)) (null? (thisvar s)) (null? (thisval s))) (error 'uninitialized "variable not declared"))
       ((eq? v (thisvar s))                          (if (null? (unbox (thisval s)))
                                                         (error 'uninitilized "variable not set")
                                                         (unbox (thisval s))))
-      (else                                         (Mvariable v (cons (cdar s) (cdadr s)))))))
+      (else                                         (Mvariable v (list (cdar s) (cdadr s)))))))
 
 ;;Gets a state and a variable, returns true if the state has the variable initialized
 (define Minitialized
   (lambda (v s)
     (cond
-      ((null? s)        #f)
-      ((null? (car s))  #f)
-      ((eq? v (caar s)) #t)
-      (else             (Minitialized v (cons (cdar s) (cdadr s)))))))
+      ((null? s)                                      #f)
+      ((and (null? (car s)) (null? (cddr (caddr s)))) #f)
+      ((null? (car s))                                (Minitialized v (caddr s)))
+      ((eq? v (caar s))                               #t)
+      (else                                           (Minitialized v (list (cdar s) (cdadr s)))))))
 
 ;;Precondition - Minitialized is true. Gets a variable name, value, and state. Changes variable value in the state to given value.
 (define Mchange
@@ -56,9 +70,13 @@
     (Mchange_helper e s return)))
 (define Mchange_helper
   (lambda (e s return)
-    (if (eq? (car e) (caar s))
-        (return (list (car s) (cons (box (cadr e)) (cdadr s))))
-        (Mchange_helper e (cons (cdar s) (cdadr s)) (lambda (v) (list (append (caar s) (list (car v))) (append (caadr s) (list (cadr v)))))))))
+    (cond
+      ((and (null? (car s)) (not (null? (cddr s)))) (Mchange e (caddr s) (lambda (v) (list (car s) (cadr s) v))))
+      ((eq? (car e) (caar s)) (return (list (car s) (cons (box (cadr e)) (cdadr s)))))
+      (else                                         (Mchange_helper e
+                                                                    (list (cdar s) (cdadr s))
+                                                                    (lambda (v) (list (cons (caar s) (car v))
+                                                                                      (cons (caadr s) (cadr v)))))))))
     
 ;;Gets a list with two elements, the first the variable name, the second the value to be assigned. Checks whether the variable is already initialized
 ;;If it is, change the assigned value, otherwise, assign the variable.
