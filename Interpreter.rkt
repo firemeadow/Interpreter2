@@ -1,7 +1,9 @@
 #lang racket
 (require "simpleParser.rkt")
 
-;;;;Lucas Invernizzi Lmi12 EECS 345 Interpreter part 1
+;;;;Lucas Invernizzi lmi12
+;;;;John Kwak bxk295
+;;;;EECS 345 Interpreter part 2
 
 ;;Starts the interpreting with the state empty
 (define Interpret
@@ -48,9 +50,10 @@
     (define thisvar caar)
     (define thisval caadr)
     (cond
+      ((and (null? (car s)) (not (null? (cddr s)))) (Mvariable v (caddr s)))
       ((or (null? (car s)) (null? (thisvar s)) (null? (thisval s))) (error 'uninitialized "variable not declared"))
       ((eq? v (thisvar s))                          (if (null? (unbox (thisval s)))
-                                                        (error 'uninitilized "variable not set")
+                                                        (error 'uninitialized "variable not set")
                                                         (unbox (thisval s))))
       (else                                         (Mvariable v (list (cdar s) (cdadr s)))))))
 
@@ -59,7 +62,7 @@
   (lambda (v s)
     (cond
       ((null? s)                                      #f)
-      ((and (null? (car s)) (null? (cddr (caddr s)))) #f)
+      ((and (null? (car s)) (null? (cddr s)))         #f)
       ((null? (car s))                                (Minitialized v (caddr s)))
       ((eq? v (caar s))                               #t)
       (else                                           (Minitialized v (list (cdar s) (cdadr s)))))))
@@ -71,7 +74,7 @@
 (define Mchange_helper
   (lambda (e s return)
     (cond
-      ((and (null? (car s)) (not (null? (cddr s)))) (Mchange e (caddr s) (lambda (v) (list (car s) (cadr s) v))))
+      ((and (null? (car s)) (not (null? (cddr s)))) (Mchange_helper e (caddr s) (lambda (v) (list (car s) (cadr s) v))))
       ((eq? (car e) (caar s)) (return (list (car s) (cons (box (cadr e)) (cdadr s)))))
       (else                                         (Mchange_helper e
                                                                     (list (cdar s) (cdadr s))
