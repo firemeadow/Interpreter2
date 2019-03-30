@@ -37,18 +37,14 @@
       ((eq? 'begin (statement-type statement))    (interpret-block statement environment return break continue throw next))
       ((eq? 'throw (statement-type statement))    (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement))      (interpret-try statement environment return break continue throw next))
-      ((eq? 'function (statement-type statement)) (interpret-function statement environment return break continue throw next))
+      ((eq? 'function (statement-type statement)) (interpret-declare-fxn statement environment next))
       ((eq? 'funcall (statement-type statement))  (interpret-funcall statement environment return break continue throw next))
       (else                                       (myerror "Unknown statement:" (statement-type statement))))))
 
 ; Calls a function
 (define interpret-funcall
   (lambda (statement environment return break continue throw next)
-    ))
-
-; Defines a function
-(define interpret-function
-  (lambda (statement environment return break continue throw next)
+    (pop-frame (interpret-block (lookup (get-declare-var statement) (push-frame environment) return break continue throw next))))
     ))
 
 ; Calls the return continuation with the given expression value
@@ -62,6 +58,11 @@
     (if (exists-declare-value? statement)
         (next (insert (get-declare-var statement) (eval-expression (get-declare-value statement) environment) environment))
         (next (insert (get-declare-var statement) 'novalue environment)))))
+
+; Adds a new function binding to the environment.
+(define interpret-declare-fxn
+  (lambda (statement environment next)
+    (next (insert (get-declare-var statement) (get-function-body statement) environment))))
 
 ; Updates the environment to add a new binding for a variable
 (define interpret-assign
@@ -225,6 +226,7 @@
 (define get-try operand1)
 (define get-catch operand2)
 (define get-finally operand3)
+(define get-function-body cddr)
 
 (define catch-var
   (lambda (catch-statement)
