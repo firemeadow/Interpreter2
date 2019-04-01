@@ -1,6 +1,6 @@
 ; If you are using scheme instead of racket, comment these two lines, uncomment the (load "simpleParser.scm") and comment the (require "simpleParser.rkt")
 #lang racket
-(require "simpleParser.rkt")
+(require "functionParser.rkt")
 ; (load "simpleParser.scm")
 
 ; An interpreter for the simple language using tail recursion for the M_state functions and does not handle side effects.
@@ -61,7 +61,7 @@
 ; Decides whether a function is being declared or is the main function
 (define interpret-fxn
   (lambda (statement environment return break continue throw next)
-    (if (eq? 'main (operator statement))
+    (if (eq? 'main (get-function-name statement))
         (next (interpret-block (get-function-body statement) environment return break continue throw next))
         (next (insert (get-function-name statement) (get-function-body statement) environment)))))
 
@@ -399,3 +399,4 @@
                             (makestr (string-append str (string-append " " (symbol->string (car vals)))) (cdr vals))))))
       (error-break (display (string-append str (makestr "" vals)))))))
 
+(interpret "test.txt")
