@@ -37,15 +37,14 @@
       ((eq? 'begin (statement-type statement))    (interpret-block statement environment return break continue throw next))
       ((eq? 'throw (statement-type statement))    (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement))      (interpret-try statement environment return break continue throw next))
-      ((eq? 'function (statement-type statement)) (interpret-declare-fxn statement environment next))
+      ((eq? 'function (statement-type statement)) (interpret-fxn statement environment return break continue throw next))
       ((eq? 'funcall (statement-type statement))  (interpret-funcall statement environment return break continue throw next))
       (else                                       (myerror "Unknown statement:" (statement-type statement))))))
 
 ; Calls a function
 (define interpret-funcall
   (lambda (statement environment return break continue throw next)
-    (pop-frame (interpret-block (lookup (get-declare-var statement) (push-frame environment) return break continue throw next))))
-    ))
+    (next (interpret-block (lookup (get-function-name statement) (environment)) environment return break continue throw next))))
 
 ; Calls the return continuation with the given expression value
 (define interpret-return
@@ -59,10 +58,12 @@
         (next (insert (get-declare-var statement) (eval-expression (get-declare-value statement) environment) environment))
         (next (insert (get-declare-var statement) 'novalue environment)))))
 
-; Adds a new function binding to the environment.
-(define interpret-declare-fxn
-  (lambda (statement environment next)
-    (next (insert (get-declare-var statement) (get-function-body statement) environment))))
+; Decides whether a function is being declared or is the main function
+(define interpret-fxn
+  (lambda (statement environment return break continue throw next)
+    (if (eq? 'main (operator statement))
+        (next (interpret-block (get-function-body statement) environment return break continue throw next))
+        (next (insert (get-function-name statement) (get-function-body statement) environment)))))
 
 ; Updates the environment to add a new binding for a variable
 (define interpret-assign
@@ -226,7 +227,8 @@
 (define get-try operand1)
 (define get-catch operand2)
 (define get-finally operand3)
-(define get-function-body cddr)
+(define get-function-body operand3)
+(define get-function-name operand1)
 
 (define catch-var
   (lambda (catch-statement)
