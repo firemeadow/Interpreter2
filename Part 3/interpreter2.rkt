@@ -52,12 +52,13 @@
 ; Initializes parameters in a function call
 (define parameter-init
   (lambda (functioninputs funcallinputs environment return break continue throw next)
-    (if (not (or (null? (cdr functioninputs)) (null? (cdr funcallinputs))))
+    (if (not (or (pair? (cdr functioninputs)) (pair? (cdr funcallinputs))))
+        (return (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next) environment))
         (next (parameter-init (cdr functioninputs)
                               (cdr funcallinputs)
-                              (insert (car functioninputs) (car funcallinputs) environment)
-                              return break continue throw next))
-        (return environment))))
+                              (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next)
+                                      environment)
+                              return break continue throw next)))))
 
 ; Calls the return continuation with the given expression value
 (define interpret-return
@@ -178,7 +179,7 @@
       ((eq? '! (operator expr))                           (not (eval-expression (operand1 expr) environment return break continue throw next)))
       ((and (eq? '- (operator expr)) (= 2 (length expr))) (- (eval-expression (operand1 expr) environment return break continue throw next)))
       ((eq? 'funcall (operator expr))                     (next (interpret-funcall expr environment return break continue throw next)))
-      (else                                               (eval-binary-op2 expr (eval-expression (operand1 expr) environment return break continue throw next) environment)))))
+      (else                                               (eval-binary-op2 expr (eval-expression (operand1 expr) environment return break continue throw next) environment return break continue throw next)))))
 
 ; Complete the evaluation of the binary operator by evaluating the second operand and performing the operation.
 (define eval-binary-op2
