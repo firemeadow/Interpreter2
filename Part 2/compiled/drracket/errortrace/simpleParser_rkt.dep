@@ -1,0 +1,1 @@
+("7.1" ("47829ad44b0f1ff89f571eec14f08386b30492ce" . "0239d92e7033b111307b06a906be003e666c1c17") #"C:\\Users\\lminvern\\Desktop\\stuff\\School\\school stuff sem 6\\PLC\\Interpreter\\Interpreter\\Part 2\\lex.rkt" (collects #"errortrace" #"errortrace-key.rkt") (collects #"racket" #"main.rkt") (collects #"racket" #"runtime-config.rkt"))
