@@ -43,7 +43,21 @@
 ; Calls a function
 (define interpret-funcall
   (lambda (statement environment return break continue throw next)
-    (next (interpret-statement-list (lookup (get-funcall-name statement) environment) environment return break continue throw next))))
+    (next (pop-frame (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment))
+                                               (parameter-init (car (lookup (get-funcall-name statement) environment))
+                                                               (list (get-funcall-inputs statement))
+                                                               (push-frame environment) return break continue throw next)
+                                               return break continue throw next)))))
+
+; Initializes parameters in a function call
+(define parameter-init
+  (lambda (functioninputs funcallinputs environment return break continue throw next)
+    (if (not (or (null? (cdr functioninputs)) (null? (cdr funcallinputs))))
+        (next (parameter-init (cdr functioninputs)
+                              (cdr funcallinputs)
+                              (insert (car functioninputs) (car funcallinputs) environment)
+                              return break continue throw next))
+        (return environment))))
 
 ; Calls the return continuation with the given expression value
 (define interpret-return
@@ -62,7 +76,8 @@
   (lambda (statement environment return break continue throw next)
     (if (eq? 'main (get-function-name statement))
         (next (interpret-statement-list (get-function-body statement) environment return break continue throw next))
-        (next (insert (get-function-name statement) (get-function-body statement) environment)))))
+        (next (insert (get-function-name statement) (cddr statement) environment)))))
+
 ; Updates the environment to add a new binding for a variable
 (define interpret-assign
   (lambda (statement environment return break continue throw next)
