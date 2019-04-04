@@ -44,16 +44,16 @@
 (define interpret-funcall
   (lambda (statement environment return break continue throw next)
     (next (return (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment))
-                                   (parameter-init (car (lookup (get-funcall-name statement) environment)) (cddr statement)
-                                                   (push-frame environment) return break continue throw next) return break continue throw next)))))
+                                      (parameter-init (car (lookup (get-funcall-name statement) environment)) (cddr statement)
+                                                      (push-frame environment) return break continue throw next) return break continue throw next)))))
 
 ; Initializes parameters in a function call
 (define parameter-init
   (lambda (functioninputs funcallinputs environment return break continue throw next)
     (if (not (or (pair? (cdr functioninputs)) (pair? (cdr funcallinputs))))
-        (next (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next) environment))
-        (next (parameter-init (cdr functioninputs) (cdr funcallinputs) (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next)
-                                                                               environment) return break continue throw next)))))
+        (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next) environment)
+        (parameter-init (cdr functioninputs) (cdr funcallinputs) (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next)
+                                                                               environment) return break continue throw next))))
 
 ; Calls the return continuation with the given expression value
 (define interpret-return
@@ -173,7 +173,7 @@
     (cond
       ((eq? '! (operator expr))                           (not (eval-expression (operand1 expr) environment return break continue throw next)))
       ((and (eq? '- (operator expr)) (= 2 (length expr))) (- (eval-expression (operand1 expr) environment return break continue throw next)))
-      ((eq? 'funcall (operator expr))                     (next (pop-frame (interpret-funcall expr environment return break continue throw next))))
+      ((eq? 'funcall (operator expr))                     (interpret-funcall expr environment return break continue throw next))
       (else                                               (eval-binary-op2 expr (eval-expression (operand1 expr) environment return break continue throw next) environment return break continue throw next)))))
 
 ; Complete the evaluation of the binary operator by evaluating the second operand and performing the operation.
@@ -193,7 +193,7 @@
       ((eq? '>= (operator expr))      (>= op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? '|| (operator expr))      (or op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? '&& (operator expr))      (and op1value (eval-expression (operand2 expr) environment return break continue throw next)))
-      ((eq? 'funcall (operator expr)) (pop-frame (interpret-funcall expr environment)))
+      ((eq? 'funcall (operator expr)) (interpret-funcall expr environment))
       (else                           (myerror "Unknown operator:" (operator expr))))))
 
 ; Determines if two values are equal.  We need a special test because there are both boolean and integer types.
