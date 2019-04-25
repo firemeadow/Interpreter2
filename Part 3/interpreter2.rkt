@@ -43,15 +43,14 @@
 ; Calls a function
 (define interpret-funcall
   (lambda (statement environment return break continue throw next)
-    (next (return (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment))
+    (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment))
                                       (parameter-init (car (lookup (get-funcall-name statement) environment)) (cddr statement)
-                                                      (push-frame environment) return break continue throw next) return break continue throw next)))))
-
+                                                      (push-frame environment) return break continue throw next) return break continue throw next)))
 ; Initializes parameters in a function call
 (define parameter-init
   (lambda (functioninputs funcallinputs environment return break continue throw next)
     (if (not (or (pair? (cdr functioninputs)) (pair? (cdr funcallinputs))))
-        (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next) environment)
+        (insert (car functioninputs) (eval-expression (car funcallinputs) (pop-frame environment) return break continue throw next) environment)
         (parameter-init (cdr functioninputs) (cdr funcallinputs) (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next)
                                                                                environment) return break continue throw next))))
 
