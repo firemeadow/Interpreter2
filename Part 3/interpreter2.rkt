@@ -38,21 +38,28 @@
       ((eq? 'throw (statement-type statement))    (interpret-throw statement environment return break continue throw next))
       ((eq? 'try (statement-type statement))      (interpret-try statement environment return break continue throw next))
       ((eq? 'function (statement-type statement)) (interpret-fxn statement environment return break continue throw next))
+      ((eq? 'funcall (statement-type statement))   (interpret-funcall statement environment return break continue throw next))
       (else                                       (myerror "Unknown statement:" (statement-type statement))))))
 
 ; Calls a function
 (define interpret-funcall
   (lambda (statement environment return break continue throw next)
-    (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment))
-                                      (parameter-init (car (lookup (get-funcall-name statement) environment)) (cddr statement)
-                                                      (push-frame environment) return break continue throw next) return break continue throw next)))
+    (if (null? (cddr statement))
+        (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment)) (push-frame environment) return break continue throw next)
+        (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment))
+                                  (parameter-init (car (lookup (get-funcall-name statement) environment)) (cddr statement)
+                                                  (push-frame environment) return break continue throw next) return break continue throw next))))
 ; Initializes parameters in a function call
 (define parameter-init
   (lambda (functioninputs funcallinputs environment return break continue throw next)
-    (if (not (or (pair? (cdr functioninputs)) (pair? (cdr funcallinputs))))
-        (insert (car functioninputs) (eval-expression (car funcallinputs) (pop-frame environment) return break continue throw next) environment)
-        (parameter-init (cdr functioninputs) (cdr funcallinputs) (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next)
-                                                                               environment) return break continue throw next))))
+    (cond
+      ((null? functioninputs)                 (myerror "Mismatched parameters and arguments"))
+      ((not (or (pair? (cdr functioninputs))
+                (pair? (cdr funcallinputs)))) (insert (car functioninputs) (eval-expression (car funcallinputs) (pop-frame environment) return break continue throw next) environment))
+      (else                                   (parameter-init (cdr functioninputs)
+                                                              (cdr funcallinputs)
+                                                              (insert (car functioninputs) (eval-expression (car funcallinputs) environment return break continue throw next) environment)
+                                                               return break continue throw next)))))
 
 ; Calls the return continuation with the given expression value
 (define interpret-return
