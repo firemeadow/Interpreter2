@@ -1,6 +1,6 @@
 ; If you are using scheme instead of racket, comment these two lines, uncomment the (load "simpleParser.scm") and comment the (require "simpleParser.rkt")
 #lang racket
-(require "functionParser.rkt")
+(require "classParser.rkt")
 ; (load "simpleParser.scm")
 
 ; An interpreter for the simple language using tail recursion for the M_state functions and does not handle side effects.
@@ -39,31 +39,54 @@
       ((eq? 'throw (statement-type statement))             (interpret-throw statement environment return break continue throw next))
       ((eq? 'try (statement-type statement))               (interpret-try statement environment return break continue throw next))
       ((eq? 'function (statement-type statement))          (interpret-fxn statement environment return break continue throw next))
-      ((eq? 'static-function (statement-type statement))   (interpret-static-fxn (cdr statement) environment return break continue throw next))
-      ((eq? 'abstract-function (statement-type statement)) (interpret-abstract-fxn statement environment return break continue throw next))
+      ((eq? 'class (statement-type statement))             (interpret-class statement environment return break continue throw next))
+      ((eq? 'static-function (statement-type statement))   (interpret-static-fxn (cdr statement) environment return break continue throw next)) ;Why pass down the cdr of the statement and not the statement itself? because i dont use the first part of the statement
+;      ((eq? 'abstract-function (statement-type statement)) (interpret-abstract-fxn statement environment return break continue throw next))
       ((eq? 'funcall (statement-type statement))           (interpret-funcall statement environment return break continue throw next))
       (else                                                (myerror "Unknown statement:" (statement-type statement))))))
 
-; Interprets a static funciton
-(define interpret-static-function
+;finds if a class has a main funciton
+(define has-main
+  (lambda (class-body)
+    (cond
+      ((null? class-body)            #f)
+      ((eq? 'main (cadr class-body)) #t)
+      (else                          (has-main (cdr class-body))))))
+
+;Interprets a class
+(define interpret-class
+  (lambda (statement environment return break continue throw next)
+    (if (has-main (cdddr statement))
+        (cond
+          ((null? (cdr statement)) environment)
+          ((not (null? (caddr statement))) (interpret-statement-list (cdddr statement)
+                                                                     (insert (cadr (caddr statement)) (lookup (cadr (caddr statement)) environment) (push-frame environment))
+                                                                     return break continue throw next))
+          (else (interpret-statement-list (cddr statement) (push-frame environment) return break continue throw next)))
+        (insert  (cadr statement) (cddr statement) environment))))
+
+; Interprets a static function
+(define interpret-static-fxn
   (lambda (statement environment return break continue throw)
     (cond
       ((null? (cdr statement)) environment)
       (else (insert (car statement) (cdr statement) environment)))))
 
 
-; Interprets an abstract funciton INCOMPLETE
-(define interpret-abstract-fxn
-  (lambda (statement environment return break continue throw next)))
+; Interprets an abstract function INCOMPLETE
+;(define interpret-abstract-fxn
+;  (lambda (statement environment return break continue throw next)
+;    (cond
+;      ((null? (cdr statement)) 
 
 
 ; Declares a static variable
 (define interpret-static-declare
   (lambda (statement environment return break continue throw next)
     (if (null? (operand2 statement))
-      (interpret-declare (operand1 stmt) environment return break continue throw next)
+      (interpret-declare (operand1 statement) environment return break continue throw next)
       (interpret-assign (operand1 statement) (eval-operator (operand2 statement) environment return break continue throw next) (interpret-declare (operand1 statement) environment)))))
-    
+
 ; Calls a function
 (define interpret-funcall
   (lambda (statement environment return break continue throw next)
@@ -100,7 +123,7 @@
 (define interpret-fxn
   (lambda (statement environment return break continue throw next)
     (if (eq? 'main (get-function-name statement))
-        (next (interpret-statement-list (get-function-body statement) environment return break continue throw next))
+        (next (interpret-statement-list (get-function-body statement) (push-frame environment) return break continue throw next))
         (next (insert (get-function-name statement) (cddr statement) environment)))))
 
 ; Updates the environment to add a new binding for a variable
@@ -271,7 +294,7 @@
 (define get-function-name operand1)
 (define get-funcall-name operand1)
 (define get-funcall-inputs operand2)
-    
+
 (define catch-var
   (lambda (catch-statement)
     (car (operand1 catch-statement))))
@@ -325,7 +348,7 @@
 (define lookup
   (lambda (var environment)
     (lookup-variable var environment)))
-  
+
 ; A helper function that does the lookup.  Returns an error if the variable does not have a legal value
 (define lookup-variable
   (lambda (var environment)
@@ -441,4 +464,4 @@
                             (makestr (string-append str (string-append " " (symbol->string (car vals)))) (cdr vals))))))
       (error-break (display (string-append str (makestr "" vals)))))))
 
-(interpret "test.txt")
+(interpret "test.txt") 
