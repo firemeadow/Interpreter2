@@ -40,18 +40,37 @@
       ((eq? 'try (statement-type statement))               (interpret-try statement environment return break continue throw next))
       ((eq? 'function (statement-type statement))          (interpret-fxn statement environment return break continue throw next))
       ((eq? 'class (statement-type statement))             (interpret-class statement environment return break continue throw next))
-      ((eq? 'static-function (statement-type statement))   (interpret-static-fxn (cdr statement) environment return break continue throw next)) ;Why pass down the cdr of the statement and not the statement itself? 
+      ((eq? 'static-function (statement-type statement))   (interpret-static-fxn (cdr statement) environment return break continue throw next)) ;Why pass down the cdr of the statement and not the statement itself? because i dont use the first part of the statement
 ;      ((eq? 'abstract-function (statement-type statement)) (interpret-abstract-fxn statement environment return break continue throw next))
       ((eq? 'funcall (statement-type statement))           (interpret-funcall statement environment return break continue throw next))
       (else                                                (myerror "Unknown statement:" (statement-type statement))))))
 
+;finds if a class has a main function
+;(define has-main
+;  (lambda (class-body)
+;    (cond
+;      ((null? class-body)            #f)
+;      ((eq? 'main (cadr class-body)) #t)
+;      (else                          (has-main (cdr class-body))))))
+
+;finds if a class has a main function
+(define has-main
+  (lambda (class-body)
+    (cond
+      ((null? class-body)            #f)
+      ((exists-in-list? 'main class-body) #t))))
 
 ;Interprets a class
 (define interpret-class
   (lambda (statement environment return break continue throw next)
-    (cond
-      ((null? (cdr statement)) environment)
-      (else (insert (cadr statement) (interpret-block (cdddr statement) environment return break continue throw next) (environment)))))
+    (if (has-main (cdddr statement))
+        (cond
+          ((null? (cdr statement)) environment)
+          ((not (null? (caddr statement))) (interpret-statement-list (cdddr statement)
+                                                                     (insert (cadr (caddr statement)) (lookup (cadr (caddr statement)) environment) (push-frame environment))
+                                                                     return break continue throw next))
+          (else (interpret-statement-list (cddr statement) (push-frame environment) return break continue throw next)))
+        (insert  (cadr statement) (cddr statement) environment))))
 
 ; Interprets a static function
 (define interpret-static-fxn
@@ -74,7 +93,7 @@
     (if (null? (operand2 statement))
       (interpret-declare (operand1 statement) environment return break continue throw next)
       (interpret-assign (operand1 statement) (eval-operator (operand2 statement) environment return break continue throw next) (interpret-declare (operand1 statement) environment)))))
-    
+
 ; Calls a function
 (define interpret-funcall
   (lambda (statement environment return break continue throw next)
@@ -111,7 +130,7 @@
 (define interpret-fxn
   (lambda (statement environment return break continue throw next)
     (if (eq? 'main (get-function-name statement))
-        (next (interpret-statement-list (get-function-body statement) environment return break continue throw next))
+        (next (interpret-statement-list (get-function-body statement) (push-frame environment) return break continue throw next))
         (next (insert (get-function-name statement) (cddr statement) environment)))))
 
 ; Updates the environment to add a new binding for a variable
@@ -214,6 +233,9 @@
       ((eq? '! (operator expr))                           (not (eval-expression (operand1 expr) environment return break continue throw next)))
       ((and (eq? '- (operator expr)) (= 2 (length expr))) (- (eval-expression (operand1 expr) environment return break continue throw next)))
       ((eq? 'funcall (operator expr))                     (interpret-funcall expr environment return break continue throw next))
+      ((eq? 'dot (operator expr))                         (lookup (caddr expr) (interpret-statement-list (lookup (cadr expr) environment)
+                                                                                                         (push-frame environment) return break continue throw next)))
+      ((eq? 'new (operator expr))                         (interpret-statement-list (lookup (cadr expr) environment) (push-frame environment) return break continue throw next))
       (else                                               (eval-binary-op2 expr (eval-expression (operand1 expr) environment return break continue throw next) environment return break continue throw next)))))
 
 ; Complete the evaluation of the binary operator by evaluating the second operand and performing the operation.
@@ -234,6 +256,9 @@
       ((eq? '|| (operator expr))      (or op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? '&& (operator expr))      (and op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? 'funcall (operator expr)) (interpret-funcall expr environment))
+      ((eq? 'dot (operator expr))     (lookup (caddr expr) (interpret-statement-list (lookup (cadr expr) environment)
+                                                                                     (push-frame environment) return break continue throw next)))
+      ((eq? 'new (operator expr))     (interpret-statement-list (lookup (cadr expr) environment) (push-frame environment) return break continue throw next))
       (else                           (myerror "Unknown operator:" (operator expr))))))
 
 ; Determines if two values are equal.  We need a special test because there are both boolean and integer types.
@@ -282,7 +307,7 @@
 (define get-function-name operand1)
 (define get-funcall-name operand1)
 (define get-funcall-inputs operand2)
-    
+
 (define catch-var
   (lambda (catch-statement)
     (car (operand1 catch-statement))))
@@ -336,7 +361,7 @@
 (define lookup
   (lambda (var environment)
     (lookup-variable var environment)))
-  
+
 ; A helper function that does the lookup.  Returns an error if the variable does not have a legal value
 (define lookup-variable
   (lambda (var environment)
@@ -452,4 +477,4 @@
                             (makestr (string-append str (string-append " " (symbol->string (car vals)))) (cdr vals))))))
       (error-break (display (string-append str (makestr "" vals)))))))
 
-(interpret "test.txt")
+(interpret "test.txt") 
