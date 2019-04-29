@@ -63,14 +63,14 @@
 ;Interprets a class
 (define interpret-class
   (lambda (statement environment return break continue throw next)
-    (if (has-main (cdddr statement))
+    (if (has-main (get-class-body statement))
         (cond
           ((null? (cdr statement)) environment)
-          ((not (null? (caddr statement))) (interpret-statement-list (cdddr statement)
-                                                                     (insert (cadr (caddr statement)) (lookup (cadr (caddr statement)) environment) (push-frame environment))
+          ((not (null? (get-class-extends statement))) (interpret-statement-list (get-class-body statement)
+                                                                     (insert (cadr (get-class-extends statement)) (lookup (cadr (get-class-extends statement)) environment) (push-frame environment))
                                                                      return break continue throw next))
           (else (interpret-statement-list (cddr statement) (push-frame environment) return break continue throw next)))
-        (insert  (cadr statement) (cddr statement) environment))))
+        (insert  (get-class-name statement) (cddr statement) environment))))
 
 ; Interprets a static function
 (define interpret-static-fxn
@@ -307,6 +307,9 @@
 (define get-function-name operand1)
 (define get-funcall-name operand1)
 (define get-funcall-inputs operand2)
+(define get-class-name cadr statement)
+(define get-class-extends caddr statement)
+(define get-class-body cadddr statement)
 
 (define catch-var
   (lambda (catch-statement)
