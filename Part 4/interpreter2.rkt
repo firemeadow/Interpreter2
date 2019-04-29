@@ -307,9 +307,9 @@
 (define get-function-name operand1)
 (define get-funcall-name operand1)
 (define get-funcall-inputs operand2)
-(define get-class-name cadr statement)
-(define get-class-extends caddr statement)
-(define get-class-body cadddr statement)
+(define get-class-name cadr)
+(define get-class-extends caddr)
+(define get-class-body cadddr)
 
 (define catch-var
   (lambda (catch-statement)
