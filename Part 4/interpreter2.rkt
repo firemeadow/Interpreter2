@@ -1,6 +1,6 @@
 ; If you are using scheme instead of racket, comment these two lines, uncomment the (load "simpleParser.scm") and comment the (require "simpleParser.rkt")
 #lang racket
-(require "functionParser.rkt")
+(require "classParser.rkt")
 ; (load "simpleParser.scm")
 
 ; An interpreter for the simple language using tail recursion for the M_state functions and does not handle side effects.
@@ -39,29 +39,40 @@
       ((eq? 'throw (statement-type statement))             (interpret-throw statement environment return break continue throw next))
       ((eq? 'try (statement-type statement))               (interpret-try statement environment return break continue throw next))
       ((eq? 'function (statement-type statement))          (interpret-fxn statement environment return break continue throw next))
-      ((eq? 'static-function (statement-type statement))   (interpret-static-fxn (cdr statement) environment return break continue throw next))
-      ((eq? 'abstract-function (statement-type statement)) (interpret-abstract-fxn statement environment return break continue throw next))
+      ((eq? 'class (statement-type statement))             (interpret-class statement environment return break continue throw next))
+      ((eq? 'static-function (statement-type statement))   (interpret-static-fxn (cdr statement) environment return break continue throw next)) ;Why pass down the cdr of the statement and not the statement itself? 
+;      ((eq? 'abstract-function (statement-type statement)) (interpret-abstract-fxn statement environment return break continue throw next))
       ((eq? 'funcall (statement-type statement))           (interpret-funcall statement environment return break continue throw next))
       (else                                                (myerror "Unknown statement:" (statement-type statement))))))
 
-; Interprets a static funciton
-(define interpret-static-function
+
+;Interprets a class
+(define interpret-class
+  (lambda (statement environment return break continue throw next)
+    (cond
+      ((null? (cdr statement)) environment)
+      (else (insert (cadr statement) (interpret-block (cdddr statement) environment return break continue throw next) (environment)))))
+
+; Interprets a static function
+(define interpret-static-fxn
   (lambda (statement environment return break continue throw)
     (cond
       ((null? (cdr statement)) environment)
       (else (insert (car statement) (cdr statement) environment)))))
 
 
-; Interprets an abstract funciton INCOMPLETE
-(define interpret-abstract-fxn
-  (lambda (statement environment return break continue throw next)))
+; Interprets an abstract function INCOMPLETE
+;(define interpret-abstract-fxn
+;  (lambda (statement environment return break continue throw next)
+;    (cond
+;      ((null? (cdr statement)) 
 
 
 ; Declares a static variable
 (define interpret-static-declare
   (lambda (statement environment return break continue throw next)
     (if (null? (operand2 statement))
-      (interpret-declare (operand1 stmt) environment return break continue throw next)
+      (interpret-declare (operand1 statement) environment return break continue throw next)
       (interpret-assign (operand1 statement) (eval-operator (operand2 statement) environment return break continue throw next) (interpret-declare (operand1 statement) environment)))))
     
 ; Calls a function
