@@ -226,6 +226,9 @@
       ((eq? '! (operator expr))                           (not (eval-expression (operand1 expr) environment return break continue throw next)))
       ((and (eq? '- (operator expr)) (= 2 (length expr))) (- (eval-expression (operand1 expr) environment return break continue throw next)))
       ((eq? 'funcall (operator expr))                     (interpret-funcall expr environment return break continue throw next))
+      ((eq? 'dot (operator expr))                         (lookup (caddr expr) (interpret-statement-list (lookup (cadr expr) environment)
+                                                                                                         (push-frame environment) return break continue throw next)))
+      ((eq? 'new (operator expr))                         (interpret-statement-list (lookup (cadr expr) environment) (push-frame environment) return break continue throw next))
       (else                                               (eval-binary-op2 expr (eval-expression (operand1 expr) environment return break continue throw next) environment return break continue throw next)))))
 
 ; Complete the evaluation of the binary operator by evaluating the second operand and performing the operation.
@@ -246,6 +249,9 @@
       ((eq? '|| (operator expr))      (or op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? '&& (operator expr))      (and op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? 'funcall (operator expr)) (interpret-funcall expr environment))
+      ((eq? 'dot (operator expr))     (lookup (caddr expr) (interpret-statement-list (lookup (cadr expr) environment)
+                                                                                     (push-frame environment) return break continue throw next)))
+      ((eq? 'new (operator expr))     (interpret-statement-list (lookup (cadr expr) environment) (push-frame environment) return break continue throw next))
       (else                           (myerror "Unknown operator:" (operator expr))))))
 
 ; Determines if two values are equal.  We need a special test because there are both boolean and integer types.
