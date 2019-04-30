@@ -231,18 +231,14 @@
 (define eval-expression
   (lambda (expr environment return break continue throw next)
     (cond
-      ((number? expr) expr)
-      ((eq? expr 'true) #t)
-      ((eq? expr 'false) #f)
-      ((not (list? expr)) (lookup expr environment))
-      (else (eval-operator expr environment return break continue throw next)))))
-
-(define eval-dot
-  (lambda (a b environment return break continue throw next)
-    (if (number? (lookup b a))
-        b
-        a)))
-        
+      ((number? expr)                 expr)
+      ((eq? expr 'true)               #t)
+      ((eq? expr 'false)              #f)
+      ((not (list? expr))             (lookup expr environment))
+      ((eq? 'funcall (operator expr)) (interpret-funcall expr environment return break continue throw next))
+      ((eq? 'dot (operator expr))     (lookup (caddr expr) (list (lookup (eval-expression (cadr expr) environment return break continue throw next) environment))))
+      ((eq? 'new (operator expr))     (topframe (interpret-statement-list-no-next (lookup (cadr expr) environment) (push-frame environment) return break continue throw next)))
+      (else                           (eval-operator expr environment return break continue throw next)))))
         
 
 ; Evaluate a binary (or unary) operator.  Although this is not dealing with side effects, I have the routine evaluate the left operand first and then
@@ -253,9 +249,6 @@
     (cond
       ((eq? '! (operator expr))                           (not (eval-expression (operand1 expr) environment return break continue throw next)))
       ((and (eq? '- (operator expr)) (= 2 (length expr))) (- (eval-expression (operand1 expr) environment return break continue throw next)))
-      ((eq? 'funcall (operator expr))                     (interpret-funcall expr environment return break continue throw next))
-      ((eq? 'dot (operator expr))                         (lookup (caddr expr) (list (lookup (cadr expr) environment))))
-      ((eq? 'new (operator expr))                         (topframe (interpret-statement-list-no-next (lookup (cadr expr) environment) (push-frame environment) return break continue throw next)))
       (else                                               (eval-binary-op2 expr (eval-expression (operand1 expr) environment return break continue throw next) environment return break continue throw next)))))
 
 ; Complete the evaluation of the binary operator by evaluating the second operand and performing the operation.
@@ -275,10 +268,6 @@
       ((eq? '>= (operator expr))      (>= op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? '|| (operator expr))      (or op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? '&& (operator expr))      (and op1value (eval-expression (operand2 expr) environment return break continue throw next)))
-      ((eq? 'funcall (operator expr)) (interpret-funcall expr environment))
-      ((eq? 'dot (operator expr))     (lookup (caddr expr) (interpret-statement-list-no-next (lookup (cadr expr) environment)
-                                                                                     (push-frame environment) return break continue throw next)))
-      ((eq? 'new (operator expr))     (topframe (interpret-statement-list-no-next (lookup (cadr expr) environment) (push-frame environment) return break continue throw next)))
       (else                           (myerror "Unknown operator:" (operator expr))))))
 
 ; Determines if two values are equal.  We need a special test because there are both boolean and integer types.
