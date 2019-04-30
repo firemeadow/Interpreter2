@@ -108,9 +108,13 @@
   (lambda (statement environment return break continue throw next)
     (if (null? (cddr statement))
         (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment)) (push-frame environment) return break continue throw next)
-        (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment))
-                                  (parameter-init (car (lookup (get-funcall-name statement) environment)) (cddr statement)
-                                                  (push-frame environment) return break continue throw next) return break continue throw next))))
+        (if (not (pair? (get-funcall-name statement)))   
+            (interpret-statement-list (cadr (lookup (get-funcall-name statement) environment))
+                                      (parameter-init (car (lookup (get-funcall-name statement) environment)) (cddr statement)
+                                                      (push-frame environment) return break continue throw next) return break continue throw next)
+            (interpret-statement-list (cadr (eval-expression (cadr statement) environment return break continue throw next))
+                                      (parameter-init (car (eval-expression (cadr statement) environment return break continue throw next))
+                                                      (cddr statement) (push-frame environment) return break continue throw next) return break continue throw next))))) 
 ; Initializes parameters in a function call
 (define parameter-init
   (lambda (functioninputs funcallinputs environment return break continue throw next)
@@ -232,6 +236,14 @@
       ((eq? expr 'false) #f)
       ((not (list? expr)) (lookup expr environment))
       (else (eval-operator expr environment return break continue throw next)))))
+
+(define eval-dot
+  (lambda (a b environment return break continue throw next)
+    (if (number? (lookup b a))
+        b
+        a)))
+        
+        
 
 ; Evaluate a binary (or unary) operator.  Although this is not dealing with side effects, I have the routine evaluate the left operand first and then
 ; pass the result to eval-binary-op2 to evaluate the right operand.  This forces the operands to be evaluated in the proper order in case you choose
