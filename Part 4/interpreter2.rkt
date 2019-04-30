@@ -16,6 +16,13 @@
                                (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
                                (lambda (v env) (myerror "Uncaught exception thrown")) (lambda (env) env)))))
 
+(define interpret-statement-list-no-next
+  (lambda (statement-list environment return break continue throw next)
+    (if (null? statement-list)
+        environment
+        (interpret-statement (car statement-list) environment return break continue throw (lambda (env) (interpret-statement-list-no-next (cdr statement-list) env return break continue throw next))))))
+
+
 ; interprets a list of statements.  The state/environment from each statement is used for the next ones.
 (define interpret-statement-list
   (lambda (statement-list environment return break continue throw next)
@@ -40,7 +47,7 @@
       ((eq? 'try (statement-type statement))               (interpret-try statement environment return break continue throw next))
       ((eq? 'function (statement-type statement))          (interpret-fxn statement environment return break continue throw next))
       ((eq? 'class (statement-type statement))             (interpret-class statement environment return break continue throw next))
-      ((eq? 'static-function (statement-type statement))   (interpret-static-fxn (cdr statement) environment return break continue throw next)) ;Why pass down the cdr of the statement and not the statement itself? because i dont use the first part of the statement
+      ((eq? 'static-function (statement-type statement))   (interpret-fxn statement environment return break continue throw next)) ;Why pass down the cdr of the statement and not the statement itself? because i dont use the first part of the statement
 ;      ((eq? 'abstract-function (statement-type statement)) (interpret-abstract-fxn statement environment return break continue throw next))
       ((eq? 'funcall (statement-type statement))           (interpret-funcall statement environment return break continue throw next))
       (else                                                (myerror "Unknown statement:" (statement-type statement))))))
@@ -52,6 +59,16 @@
       ((null? class-body)            #f)
       ((exists-in-list? 'main class-body) #t))))
 
+;returns the class without the main fxn
+(define class-without-main
+  (lambda (class-body)
+    (cond
+      ((null? class-body) '())
+      ((eq? 'static-function (caar class-body)) (if (eq? 'main (cadar class-body))
+                                                    (class-without-main (cdr class-body))
+                                                    (cons (car class-body) (class-without-main (cdr class-body)))))
+      (else (cons (car class-body) (class-without-main (cdr class-body)))))))
+
 ;Interprets a class
 (define interpret-class
   (lambda (statement environment return break continue throw next)
@@ -59,9 +76,9 @@
         (cond
           ((null? (cdr statement)) environment)
           ((not (null? (get-class-extends statement))) (interpret-statement-list (get-class-body statement)
-                                                                     (insert (cadr (get-class-extends statement)) (lookup (cadr (get-class-extends statement)) environment) (push-frame environment))
-                                                                     return break continue throw next))
-          (else (interpret-statement-list (get-class-body statement) (push-frame environment) return break continue throw next)))
+                                                                                 (insert (cadr (get-class-extends statement)) (lookup (cadr (get-class-extends statement)) environment) environment)
+                                                                                 return break continue throw next))
+          (else (interpret-statement-list (get-class-body statement) (insert (get-class-name statement) (class-without-main (get-class-body statement)) environment) return break continue throw next)))
         (insert  (get-class-name statement) (cddr statement) environment))))
 
 ; Interprets a static function
@@ -225,9 +242,8 @@
       ((eq? '! (operator expr))                           (not (eval-expression (operand1 expr) environment return break continue throw next)))
       ((and (eq? '- (operator expr)) (= 2 (length expr))) (- (eval-expression (operand1 expr) environment return break continue throw next)))
       ((eq? 'funcall (operator expr))                     (interpret-funcall expr environment return break continue throw next))
-      ((eq? 'dot (operator expr))                         (lookup (caddr expr) (interpret-statement-list (lookup (cadr expr) environment)
-                                                                                                         (push-frame environment) return break continue throw next)))
-      ((eq? 'new (operator expr))                         (interpret-statement-list (lookup (cadr expr) environment) (push-frame environment) return break continue throw next))
+      ((eq? 'dot (operator expr))                         (lookup (caddr expr) (list (lookup (cadr expr) environment))))
+      ((eq? 'new (operator expr))                         (topframe (interpret-statement-list-no-next (lookup (cadr expr) environment) (push-frame environment) return break continue throw next)))
       (else                                               (eval-binary-op2 expr (eval-expression (operand1 expr) environment return break continue throw next) environment return break continue throw next)))))
 
 ; Complete the evaluation of the binary operator by evaluating the second operand and performing the operation.
@@ -248,9 +264,9 @@
       ((eq? '|| (operator expr))      (or op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? '&& (operator expr))      (and op1value (eval-expression (operand2 expr) environment return break continue throw next)))
       ((eq? 'funcall (operator expr)) (interpret-funcall expr environment))
-      ((eq? 'dot (operator expr))     (lookup (caddr expr) (interpret-statement-list (lookup (cadr expr) environment)
+      ((eq? 'dot (operator expr))     (lookup (caddr expr) (interpret-statement-list-no-next (lookup (cadr expr) environment)
                                                                                      (push-frame environment) return break continue throw next)))
-      ((eq? 'new (operator expr))     (interpret-statement-list (lookup (cadr expr) environment) (push-frame environment) return break continue throw next))
+      ((eq? 'new (operator expr))     (topframe (interpret-statement-list-no-next (lookup (cadr expr) environment) (push-frame environment) return break continue throw next)))
       (else                           (myerror "Unknown operator:" (operator expr))))))
 
 ; Determines if two values are equal.  We need a special test because there are both boolean and integer types.
